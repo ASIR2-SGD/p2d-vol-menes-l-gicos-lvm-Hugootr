@@ -17,15 +17,76 @@ En esta práctica se trabajará sobre la creación y gestión de volúmenes lóg
 >[!NOTE]
 > Explicar ayudándote de una imagen la arquitectura de LVM
 
+![Alt text](image.png)
+
+A partir de unos discos duros, formamos los volúmenes físicos, que son, para LVM, de donde se calculará el espacio disponible y nos permitirán su sencillo manejo de espacio. Además, con estos volúmenes físicos, formamos un grupo de volúmenes, que nos servirá para unir muchos volúmenes físicos. A partir de un grupo, formamos los volúmenes lógicos, que alojarán los archivos con los que trabajaremos.
+
 ## Desarrollo
 ## Introducción
 >[!NOTE]
 > Explicar brevemente en que va a consistir la práctica, ayúdate de una imágen para tu explicación.
+![Alt text](image-1.png)
+A partir de unos discos duros, previamente añadidos, vamos a crear un gestor de volúmenes lógicos, con el que podemos gestionar su almacenamiento y por tanto su contenido de manera sencilla, combinando diferentes espacios y asignando concretamente lo que necesitemos.
+
+Para ello, a partir de los discos duros, crearemos los volúmenes físicos, que nos permitirán concentrarlos en un grupo. A partir de este grupo o grupos, creamos cada volúmen lógico, con el que trabajaremos de manera sencilla.
 ### Paso 1. Pasos previos
 >[!NOTE]
 > Explicar la ampliacion de la máquina virtual con nuevos discos duros
-### Paso 2. Creación de los volúmenes lógicos
+Para crear el entorno de trabajo para esta práctica, vamos a añadir estos discos duros mediante la siguiente configuración:
+```bash 
+  Vagrant.configure("2") do |config|
+  config.vm.box = "generic/ubuntu2304"
+  config.vm.box_version ='4.3.12'
+  config.vm.hostname = 'generic-sad'
+  config.vm.define vm_name = 'generic-sad'
+  config.ssh.forward_agent = true
+  config.ssh.forward_x11 = true
+  config.vm.disk :disk, size: "200MB", name: "extra_storage1"
+  config.vm.disk :disk, size: "200MB", name: "extra_storage2"
+  config.vm.disk :disk, size: "200MB", name: "extra_storage3"
+  config.vm.disk :disk, size: "200MB", name: "extra_storage4"
+  config.vm.disk :disk, size: "200MB", name: "extra_storage5"
+  config.vm.disk :disk, size: "200MB", name: "extra_storage6"
+  ```
+Una vez insertado, podemos comprobar si se han añadido todas con el comando `lsblk`
 
+## Paso 2. Creación de los volúmenes físicos
+A partir de los discos duros que tenemos, las hacemos volúmen físico con:
+```bash
+pvcreate /dev/sdb
+pvcreate /dev/sdc
+```
+(Conviene hacerlo con todos los discos duros que vayamos a usar)
 
-### Paso n .......
+## Paso 3. Creación de grupos de volúmenes
+Con este comando, estaremos asignando los volúmenes físicos en un grupo.
+```bash
+vgcreate vg-sad000 /dev/sdb /dev/sdc
+```
+### Paso 4. Creación de los volúmenes lógico
+Para crear los volúmenes lógicos:
+```bash
+lvcreate -n lv_db -L 100MB vg-sad000
+```
+con el -n indicamos el nombre, y el -L es para indicar el espacio que queremos.
 
+En caso de querer reasignar el espacio disponible:
+```bash
+lvextend -L 200MB /dev/vg-sad000/lv_db /dev/sdc /dev/sdd
+```
+
+### Paso 5. Asignación sistema de archivos
+Con el siguiente comando, crearemos el sistema de archivos que utilizaremos en nuestras carpetas.
+```bash
+mkfs.ext4 /dev/vg-sad000/lv_projects
+mkfs.ext4 /dev/vg-sad000/lv_web 
+mkfs.ext4 /dev/vg-sad000/lv_net 
+mkfs.ext4 /dev/vg-sad000/lv_db
+```
+Para terminar, montamos la partición para que sea accesible.
+```bash
+mkdir -p /mnt/projects
+mount /dev/vg-sad000/lv_projects /mnt/projects/
+
+```
+El -p del mkdir nos asegura crear todos los directorios de la ruta especificada aunque no existan
